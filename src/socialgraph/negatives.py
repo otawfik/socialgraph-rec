@@ -28,12 +28,25 @@ def hard_negatives(user, friends, train, clubs, n_users, rng, k=4):
 def sample_negatives(users, friends, train, clubs, n_users, rng, n_neg=16, n_hard=4):
     negs = np.zeros((len(users), n_neg), dtype=int)
     for i, u in enumerate(users):
-        banned = set(train.get(u, [])) | friends[u] | {u}
-        hard = hard_negatives(u, friends, train, clubs, n_users, rng, k=n_hard)
+        banned = set(train.get(int(u), [])) | friends[int(u)] | {int(u)}
+        hard = hard_negatives(int(u), friends, train, clubs, n_users, rng, k=n_hard)
         row = list(hard)
+        # Sample without rejection looping: a very popular user can be
+        # connected to almost everyone, so rejection sampling could spin
+        # forever when fewer than n_neg candidates exist. Draw from the
+        # explicit allowed list instead, cycling if it is shorter than
+        # n_neg (duplicated negatives are harmless for BPR).
+        allowed = [v for v in range(n_users) if v not in banned and v not in row]
+        rng.shuffle(allowed)
+        row += allowed
+        # Degenerate hub case: if almost everyone is banned, cycle what
+        # exists (hard negatives, else anyone but self) so the row is
+        # always exactly n_neg long and training never crashes or spins.
+        pool = allowed if allowed else (list(row) if row else
+                                        [v for v in range(n_users) if v != int(u)])
+        j = 0
         while len(row) < n_neg:
-            v = int(rng.integers(0, n_users))
-            if v not in banned and v not in row:
-                row.append(v)
+            row.append(pool[j % len(pool)])
+            j += 1
         negs[i] = row[:n_neg]
     return negs

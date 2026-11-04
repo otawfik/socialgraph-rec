@@ -37,7 +37,10 @@ def _excluded(user_id):
 
 
 def _profile_vector(major, year, clubs, interests):
-    x = np.zeros((1, _X.shape[1]))
+    # _X is the augmented matrix (profile + friend-mean), so a raw
+    # profile is half its width; cold-start users get zeros for the
+    # friend-mean half.
+    x = np.zeros((1, _X.shape[1] // 2))
     if major in MAJORS:
         x[0, MAJORS.index(major)] = 1.0
     if 0 <= year <= 3:
