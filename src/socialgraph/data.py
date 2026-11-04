@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 
-MAJORS = ["cs", "econ", "data", "finance", "bio", "mech", "psych", "math", "design", " PoliSci".strip()]
+MAJORS = ["cs", "econ", "data", "finance", "bio", "mech", "psych", "math", "design", "polisci"]
 CLUBS = [f"club_{i}" for i in range(20)]
 INTERESTS = [f"interest_{i}" for i in range(30)]
 
@@ -22,7 +22,7 @@ def generate(n_users: int = 800, seed: int = 42):
     majors = rng.integers(0, len(MAJORS), size=n_users)
     years = rng.integers(0, 4, size=n_users)
     clubs = (rng.random((n_users, len(CLUBS))) < 0.15).astype(np.float32)
-    clubs[rng.arange(n_users), rng.integers(0, len(CLUBS), size=n_users)] = 1.0
+    clubs[np.arange(n_users), rng.integers(0, len(CLUBS), size=n_users)] = 1.0
     interests = (rng.random((n_users, len(INTERESTS))) < 0.20).astype(np.float32)
 
     # Profile feature matrix: [major one-hot | year one-hot | clubs | interests]
