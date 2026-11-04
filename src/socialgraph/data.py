@@ -17,6 +17,21 @@ CLUBS = [f"club_{i}" for i in range(20)]
 INTERESTS = [f"interest_{i}" for i in range(30)]
 
 
+def augmented_features(X: np.ndarray, friends: dict) -> np.ndarray:
+    """Two-tower input: own profile plus the mean profile of your friends.
+
+    This 1-hop aggregation is what lets the towers see graph structure:
+    a friend-of-a-friend shares taste with your friends, so their profile
+    looks similar to your friends' mean profile. A cold-start user has no
+    friends, so their second half is zeros and only their own profile acts.
+    """
+    fmean = np.zeros_like(X)
+    for u in range(X.shape[0]):
+        if friends[u]:
+            fmean[u] = X[list(friends[u])].mean(axis=0)
+    return np.concatenate([X, fmean], axis=1)
+
+
 def generate(n_users: int = 800, seed: int = 42):
     rng = np.random.default_rng(seed)
     majors = rng.integers(0, len(MAJORS), size=n_users)
@@ -53,8 +68,20 @@ def generate(n_users: int = 800, seed: int = 42):
             degree[u] += 1
             degree[int(v)] += 1
 
-    # Positive "connect" interactions: biased toward friends-of-friends and
-    # shared clubs, i.e. the people a discovery feed should surface.
+    # Positive "connect" interactions: sampled from friends-of-friends and
+    # shared-club users, weighted by affinity (shared friends, shared clubs
+    # and interests, same major). The weighting is the learnable signal:
+    # uniform sampling would make held-out positives indistinguishable
+    # from any other friend-of-a-friend, and every method would sit at
+    # random. Affinity here is a stand-in for the latent taste that a
+    # real discovery feed learns from behaviour.
+    shared_friends = np.zeros((n_users, n_users), dtype=np.float32)
+    for u in range(n_users):
+        for f in friends[u]:
+            for v in friends[f]:
+                shared_friends[u, v] += 1
+    pref = 2.0 * shared_friends + 0.5 * club_sim + 0.4 * int_sim + 0.8 * same_major
+    np.fill_diagonal(pref, 0)
     train, test = {}, {}
     for u in range(n_users):
         fof = set()
@@ -66,8 +93,10 @@ def generate(n_users: int = 800, seed: int = 42):
         if len(cands) < 10:  # sparse users fall back to shared-club users
             shared = np.where(club_sim[u] >= 2)[0].tolist()
             cands = list(dict.fromkeys(cands + [c for c in shared if c != u and c not in friends[u]]))
-        rng.shuffle(cands)
-        positives = cands[: int(rng.integers(10, 25))]
+        w = pref[u, cands].astype(np.float64) + 0.1
+        w = w / w.sum()
+        k = int(rng.integers(10, 25))
+        positives = rng.choice(cands, size=min(k, len(cands)), replace=False, p=w).tolist()
         if len(positives) < 4:
             continue
         split = max(1, int(0.8 * len(positives)))

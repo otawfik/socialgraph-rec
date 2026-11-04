@@ -5,14 +5,16 @@ import sys
 import numpy as np
 
 sys.path.insert(0, "src")
-from socialgraph.data import generate
+from socialgraph.data import augmented_features, generate
 from socialgraph.model import TwoTower
 from socialgraph.negatives import sample_negatives
 
 
-def main(epochs: int = 12, seed: int = 42):
+def main(epochs: int = 15, seed: int = 42):
     data = generate(seed=seed)
-    X, friends, train = data["X"], data["friends"], data["train"]
+    friends, train = data["friends"], data["train"]
+    # Towers train on augmented features (own profile + friends' mean).
+    X = augmented_features(data["X"], friends)
     n_users = X.shape[0]
     model = TwoTower(n_users, X.shape[1], dim=32, seed=seed)
     pairs = [(u, v) for u, vs in train.items() for v in vs]
@@ -26,7 +28,7 @@ def main(epochs: int = 12, seed: int = 42):
             users = np.array([u for u, _ in batch])
             pos = np.array([v for _, v in batch])
             negs = sample_negatives(users, friends, train, data["clubs"], n_users, rng)
-            losses.append(model.train_step(users, pos, negs, X))
+            losses.append(model.train_step(users, pos, negs, X, lr=0.01))
         history.append(float(np.mean(losses)))
         print(f"epoch {ep + 1}/{epochs} loss {history[-1]:.4f}", flush=True)
     ue = np.stack([model.user_emb(np.array([u]), X)[0] for u in range(n_users)])

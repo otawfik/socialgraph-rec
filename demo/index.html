@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>SocialGraph Rec demo</title>
+<style>body{font-family:system-ui,sans-serif;max-width:640px;margin:2rem auto;padding:0 1rem}input,select,button{padding:.4rem;margin:.2rem}li{margin:.3rem 0}</style>
+</head>
+<body>
+<h1>SocialGraph Rec</h1>
+<p>Two-tower recommender for campus social discovery. Enter a user id (0-799) to see who the model suggests they connect with.</p>
+<label>User id <input id="uid" type="number" value="0" min="0" max="799"></label>
+<button onclick="rec()">Recommend</button>
+<ul id="out"></ul>
+<h2>Cold start</h2>
+<p>No history? Pick a profile and get recommendations from profile alone.</p>
+<label>Major <select id="major"><option>cs</option><option>econ</option><option>data</option><option>finance</option><option>bio</option></select></label>
+<label>Year <input id="year" type="number" value="1" min="0" max="3"></label>
+<button onclick="cold()">Cold-start recommend</button>
+<ul id="coldout"></ul>
+<script>
+async function rec(){
+  const uid = document.getElementById('uid').value;
+  const r = await fetch(`/recommend/${uid}?k=10`);
+  const d = await r.json();
+  document.getElementById('out').innerHTML = d.recommendations.map(x =>
+    `<li>User ${x.user_id} (${x.major}, year ${x.year})</li>`).join('');
+}
+async function cold(){
+  const body = {major: document.getElementById('major').value,
+    year: parseInt(document.getElementById('year').value), clubs: [1, 5], interests: [2, 7, 11]};
+  const r = await fetch('/cold-start?k=10', {method: 'POST',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const d = await r.json();
+  document.getElementById('coldout').innerHTML = d.recommendations.map(v =>
+    `<li>User ${v}</li>`).join('');
+}
+</script>
+</body></html>
