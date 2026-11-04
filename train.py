@@ -10,7 +10,7 @@ from socialgraph.model import TwoTower
 from socialgraph.negatives import sample_negatives
 
 
-def main(epochs: int = 15, seed: int = 42):
+def main(epochs: int = 10, seed: int = 42):
     data = generate(seed=seed)
     friends, train = data["friends"], data["train"]
     # Towers train on augmented features (own profile + friends' mean).
@@ -28,7 +28,7 @@ def main(epochs: int = 15, seed: int = 42):
             users = np.array([u for u, _ in batch])
             pos = np.array([v for _, v in batch])
             negs = sample_negatives(users, friends, train, data["clubs"], n_users, rng)
-            losses.append(model.train_step(users, pos, negs, X, lr=0.01))
+            losses.append(model.train_step(users, pos, negs, X, lr=0.005))
         history.append(float(np.mean(losses)))
         print(f"epoch {ep + 1}/{epochs} loss {history[-1]:.4f}", flush=True)
     ue = np.stack([model.user_emb(np.array([u]), X)[0] for u in range(n_users)])
